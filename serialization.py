@@ -1,5 +1,5 @@
 from enum import Enum
-import struct
+import json
 
 
 class Alignment(Enum):
@@ -9,7 +9,7 @@ class Alignment(Enum):
 
 class Widget():
 
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         self.parent = parent
         self.children = []
         if self.parent is not None:
@@ -17,6 +17,24 @@ class Widget():
 
     def add_child(self, child: "Widget"):
         self.children.append(child)
+
+    def to_dict(self):
+        return {
+            "class": self.__class__.__name__,
+            "children": [child.to_dict() for child in self.children] if self.children else [],
+            **self.additional_properties()
+        }
+
+    def additional_properties(self):
+        return {}
+
+    @classmethod
+    def from_dict(cls, data):
+        instance = cls()
+        for child_data in data.get("children", []):
+            child_instance = Widget.from_dict(child_data)
+            instance.add_child(child_instance)
+        return instance
 
     def __str__(self):
         return f"{self.__class__.__name__}{self.children}"
@@ -28,8 +46,11 @@ class Widget():
 class MainWindow(Widget):
 
     def __init__(self, title: str):
-        super().__init__(None)
+        super().__init__()
         self.title = title
+
+    def additional_properties(self):
+        return {"title": self.title}
 
 
 class Layout(Widget):
@@ -38,6 +59,9 @@ class Layout(Widget):
         super().__init__(parent)
         self.alignment = alignment
 
+    def additional_properties(self):
+        return {"alignment": self.alignment.name}
+
 
 class LineEdit(Widget):
 
@@ -45,11 +69,18 @@ class LineEdit(Widget):
         super().__init__(parent)
         self.max_length = max_length
 
+    def additional_properties(self):
+        return {"max_length": self.max_length}
+
+
 class ComboBox(Widget):
 
     def __init__(self, parent, items):
         super().__init__(parent)
         self.items = items
+
+    def additional_properties(self):
+        return {"items": self.items}
 
 
 app = MainWindow("Application")
@@ -64,11 +95,10 @@ box2 = ComboBox(layout2, ["a", "b", "c"])
 
 print(app)
 
-bts = app.to_binary()
-print(f"Binary data length {len(bts)}")
-print(bts)
+json_data = json.dumps(app.to_dict(), indent=2)
+print(json_data)
 
-new_app = MainWindow.from_binary(bts)
+new_data = json.loads(json_data)
+new_app = Widget.from_dict(new_data)
+
 print(new_app)
-
-print(new_app.children[1].children[1].items)
